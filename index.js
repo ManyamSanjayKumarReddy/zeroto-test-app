@@ -5,7 +5,7 @@ const port = process.env.PORT || 3000
 
 app.get("/", (req, res) => {
   res.json({
-    message: "Hello from ZeroTo!",
+    message: "Hello from ZeroTo! Updated via CI/CD 🚀",
     hostname: process.env.HOSTNAME,
     time: new Date().toISOString(),
   })
