@@ -12,7 +12,7 @@ A tiny Express app for testing ZeroTo deployments.
 
 ## Testing environment variables
 
-In ZeroTo (on the New deployment page, or the deployment's **Variables** tab) add:
+In ZeroTo (on the New deployment page, or the deployment's **Variables** tab) add the variables below — or copy [`.env.example`](.env.example) and use **Add from .env** (it has a section for each "Used by" choice):
 
 | Name | Used by | Secret | Expect |
 |---|---|---|---|
