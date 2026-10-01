@@ -2,24 +2,14 @@
 
 A tiny Express app for testing ZeroTo deployments.
 
-| Endpoint | Shows |
-|---|---|
-| `/` | greeting, and how many variables the app has |
-| `/env` | every variable the **running** app received (hidden values: only the length; names starting `PUBLIC_` are shown in full) |
-| `/env/NAME` | whether one variable is visible to the running app |
-| `/build` | which of `BUILD_TOKEN`, `BUILD_FLAG`, `NPM_TOKEN` reached the image **build** (presence + length only) |
-| `/health` | `ok` |
+`GET /` returns a greeting and `appName`, read from the `APP_NAME` environment variable
+(`"not set"` if it isn't defined). `GET /health` returns `ok`.
 
-## Testing environment variables
+## Testing an environment variable
 
-In ZeroTo (on the New deployment page, or the deployment's **Variables** tab) add the variables below — or copy [`.env.example`](.env.example) and use **Add from .env** (it has a section for each "Used by" choice):
+1. In ZeroTo, open the deployment's **Variables** tab (or the New deployment page).
+2. Add `APP_NAME` = `zeroto-test-app`, used by **Running app**. Save.
+3. **Redeploy** — variables apply on the next deploy.
+4. Open the app's URL: `appName` now shows `zeroto-test-app`. Change the value, save, redeploy, and it updates.
 
-| Name | Used by | Secret | Expect |
-|---|---|---|---|
-| `PUBLIC_GREETING` = `hello` | Running app | no | `/env` shows the value `hello` |
-| `DB_PASSWORD` = `s3cret-value` | Running app | yes | `/env` shows `set`, length 12 — never the value |
-| `BUILD_TOKEN` = `build-secret-123` | Build only | yes | `/build` shows `present: true`; **not** in `/env` |
-| `NPM_TOKEN` = `x` | Build and running app | yes | in both `/build` and `/env` |
-
-Variables apply on the next deploy: save, then **Redeploy**. Changing only a "Running app"
-variable still needs a redeploy; the running app keeps what it was deployed with until then.
+Locally: copy `.env.example` to `.env` and run `node index.js`.
