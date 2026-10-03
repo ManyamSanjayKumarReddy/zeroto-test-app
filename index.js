@@ -13,7 +13,7 @@ const port = process.env.PORT || 3000
 
 app.get("/", (req, res) => {
   res.json({
-    message: "Hello from ZeroTo! Updated via CI/CD 🚀",
+    message: "Hello from ZeroTo! Built without a Dockerfile 🚀",
     appName: process.env.APP_NAME ?? "not set",
     hostname: process.env.HOSTNAME,
     time: new Date().toISOString(),
