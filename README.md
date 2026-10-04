@@ -38,7 +38,13 @@ Set **Root directory** to `nope` and redeploy: the build fails with `The root di
 
 The app creates its `notes` table itself and never prints `DATABASE_URL`.
 
-## Test 7 — a UI that talks to this app
+## Test 7 — it sleeps when idle, and wakes by itself
+ZeroTo stops an idle app after about 5 minutes and removes its container after about 10; the next request wakes it. Leave this app alone for a
+few minutes, then open its URL: the first answer takes a few seconds (a stopped container restarts in place), and after ~10 minutes it takes
+longer and the edge shows a "Waking up your app…" page that refreshes itself. Either way no redeploy is needed. A browser app calling this API
+(like `zeroto-ui-test`) should expect that first delay — that repo waits for `/health` before its real calls.
+
+## Test 8 — a UI that talks to this app
 The separate repo **zeroto-ui-test** is a static site (Vite) with a page that calls this app's `/` and `/notes`. Deploy it as its own deployment and point its `VITE_API_URL` at this app's URL — see that repo's README.
 
 Locally: copy `.env.example` to `.env` and run `node index.js` (set `DATABASE_URL` in it to try the database endpoints).
