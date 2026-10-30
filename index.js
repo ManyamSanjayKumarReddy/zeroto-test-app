@@ -61,9 +61,13 @@ function withDatabase(work) {
   }
 }
 
+// Change this and push: with auto-deploy on, the new value shows up in / and /version once the build is live.
+const VERSION = "2: pushed to test auto-deploy"
+
 app.get("/", (req, res) => {
   res.json({
     message: "Hello from ZeroTo! Built without a Dockerfile 🚀",
+    version: VERSION,
     appName: process.env.APP_NAME ?? "not set",
     database: pool ? "DATABASE_URL is set — try /db and /notes" : "not linked — link a database in ZeroTo, redeploy, then try /db",
     hostname: process.env.HOSTNAME,
@@ -72,6 +76,8 @@ app.get("/", (req, res) => {
 })
 
 app.get("/health", (req, res) => res.send("ok"))
+
+app.get("/version", (req, res) => res.json({ version: VERSION, hostname: process.env.HOSTNAME }))
 
 // Proof the link works: who we are connected as, to what.
 app.get(
