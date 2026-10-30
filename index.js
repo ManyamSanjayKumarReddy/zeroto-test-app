@@ -64,12 +64,46 @@ function withDatabase(work) {
 // Change this and push: with auto-deploy on, the new value shows up in / and /version once the build is live.
 const VERSION = "2: pushed to test auto-deploy"
 
+// ── Storage (a ZeroTo bucket) ───────────────────────────────────────────────────
+// Linking a bucket in ZeroTo adds STORAGE_URL, STORAGE_BUCKET and STORAGE_KEY (and STORAGE_PUBLIC_URL for a public bucket) to this app's
+// variables; redeploy to pick them up. The key stays on the server: this app talks to the bucket for the browser, never the other way round.
+const storageUrl = process.env.STORAGE_URL?.replace(/\/$/, "")
+const storageKey = process.env.STORAGE_KEY
+
+/** Calls the bucket's API with this app's key. Throws an Error with the storage's own message when it refuses. */
+async function storage(path, init = {}) {
+  const res = await fetch(storageUrl + path, { ...init, headers: { authorization: `Bearer ${storageKey}`, "content-type": "application/json", ...init.headers } })
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}))
+    const err = new Error(body.message ?? `Storage answered ${res.status}`)
+    err.status = res.status
+    throw err
+  }
+  return res.json()
+}
+
+/** Runs `work` against the bucket, or answers 503 saying how to link one. */
+function withStorage(work) {
+  return async (req, res) => {
+    if (!storageUrl || !storageKey) {
+      return res.status(503).json({ linked: false, hint: "No STORAGE_URL / STORAGE_KEY. In ZeroTo: Storage → your bucket → Linked app → pick this app, then redeploy." })
+    }
+    try {
+      await work(req, res)
+    } catch (err) {
+      console.error("storage error:", err.message)
+      res.status(err.status && err.status < 500 ? err.status : 503).json({ linked: true, error: err.message })
+    }
+  }
+}
+
 app.get("/", (req, res) => {
   res.json({
     message: "Hello from ZeroTo! Built without a Dockerfile 🚀",
     version: VERSION,
     appName: process.env.APP_NAME ?? "not set",
     database: pool ? "DATABASE_URL is set — try /db and /notes" : "not linked — link a database in ZeroTo, redeploy, then try /db",
+    storage: storageUrl && storageKey ? "bucket linked — try /storage and /files" : "not linked — link a bucket in ZeroTo, redeploy, then try /storage",
     hostname: process.env.HOSTNAME,
     time: new Date().toISOString(),
   })
@@ -117,6 +151,59 @@ app.delete(
   }),
 )
 
+// Proof the link works: what the bucket is and how full it is.
+app.get(
+  "/storage",
+  withStorage(async (req, res) => {
+    res.json({ linked: true, bucketName: process.env.STORAGE_BUCKET ?? null, ...(await storage("/bucket")) })
+  }),
+)
+
+// The files in one folder: /files or /files?prefix=notes/ (a folder ends in /).
+app.get(
+  "/files",
+  withStorage(async (req, res) => {
+    const prefix = typeof req.query.prefix === "string" ? req.query.prefix : ""
+    res.json(await storage(`/files?prefix=${encodeURIComponent(prefix)}`))
+  }),
+)
+
+// Saves a small text file: {"name": "notes/hello.txt", "text": "hello"}. Two steps, as the storage API asks: get an upload address, then send the bytes to it.
+app.post(
+  "/files",
+  withStorage(async (req, res) => {
+    const name = typeof req.body?.name === "string" ? req.body.name.trim() : ""
+    const text = typeof req.body?.text === "string" ? req.body.text : ""
+    if (!name || name.length > 200 || !text || text.length > 100_000) {
+      return res.status(400).json({ error: 'Send JSON like {"name": "notes/hello.txt", "text": "hello"} (a file name, and 1 to 100,000 characters of text).' })
+    }
+    const bytes = Buffer.from(text, "utf8")
+    const ticket = await storage("/files/upload", { method: "POST", body: JSON.stringify({ key: name, size: bytes.byteLength }) })
+    const put = await fetch(ticket.url, { method: "PUT", headers: ticket.headers, body: bytes })
+    if (!put.ok) return res.status(502).json({ linked: true, error: `The storage refused the file (${put.status})` })
+    res.status(201).json({ saved: name, size: bytes.byteLength, link: ticket.link })
+  }),
+)
+
+// A link to read one file: /files/link?key=notes/hello.txt (open it in a browser to see the text).
+app.get(
+  "/files/link",
+  withStorage(async (req, res) => {
+    const key = typeof req.query.key === "string" ? req.query.key : ""
+    if (!key) return res.status(400).json({ error: "Add ?key=notes/hello.txt" })
+    res.json(await storage(`/files/link?key=${encodeURIComponent(key)}`))
+  }),
+)
+
+app.delete(
+  "/files",
+  withStorage(async (req, res) => {
+    const key = typeof req.query.key === "string" ? req.query.key : ""
+    if (!key) return res.status(400).json({ error: "Add ?key=notes/hello.txt" })
+    res.json(await storage(`/files?key=${encodeURIComponent(key)}`, { method: "DELETE" }))
+  }),
+)
+
 app.listen(port, () => {
-  console.log(`Listening on port ${port}${pool ? " (database configured)" : " (no database)"}`)
+  console.log(`Listening on port ${port}${pool ? " (database configured)" : " (no database)"}${storageUrl && storageKey ? " (bucket configured)" : " (no bucket)"}`)
 })

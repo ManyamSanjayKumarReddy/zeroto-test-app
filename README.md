@@ -4,7 +4,7 @@ The same tiny Express app as `main`, **without a Dockerfile**, for testing ZeroT
 (`main` keeps its Dockerfile, so it tests the Dockerfile path.)
 
 `GET /` returns a greeting and `appName`, read from the `APP_NAME` environment variable (`"not set"` if it isn't defined). `GET /health` returns `ok`.
-The `site/` folder is a plain static site. The app can also use a **ZeroTo managed database** (Test 6): `GET /db`, and a tiny notes API at `/notes`.
+The `site/` folder is a plain static site. The app can also use a **ZeroTo managed database** (Test 6): `GET /db`, and a tiny notes API at `/notes`, and a **ZeroTo bucket** (Test 9): `GET /storage` and a tiny files API at `/files`.
 
 ## Test 1 — the app, detected automatically
 1. New deployment → pick this repo, branch **`no-dockerfile`**. Leave **Build** on *Automatic* and everything else empty.
@@ -37,6 +37,21 @@ Set **Root directory** to `nope` and redeploy: the build fails with `The root di
 6. **Not linked:** unlink the app (and redeploy): `/db` answers `503` with a hint, `/` says `not linked`.
 
 The app creates its `notes` table itself and never prints `DATABASE_URL`.
+
+## Test 9 — a bucket (Standard and Pro plans)
+1. **Storage → New bucket** (e.g. `test-files`, private). Open it → **Linked app** → choose this deployment → **Link app**
+   (leave the variable names as they are: `STORAGE_URL`, `STORAGE_BUCKET`, `STORAGE_KEY`). ZeroTo adds them to this app, the key as a secret.
+2. **Redeploy** the app. Then:
+   - `GET /` now says `storage: "bucket linked — try /storage and /files"`.
+   - `GET /storage` → `{"linked":true,"bucketName":"test-files","name":...,"bytesUsed":0,"files":0}` — proof the app reached the bucket with its own key.
+3. Save a file: `curl -X POST https://<your-url>/files -H 'content-type: application/json' -d '{"name":"notes/hello.txt","text":"hello bucket"}'`
+   → `201 {"saved":"notes/hello.txt",...}`. It shows up in the bucket's **Files** screen too (and the usage count moves).
+4. `GET /files?prefix=notes/` lists it. `GET /files/link?key=notes/hello.txt` gives a link (valid for an hour for a private bucket): open it and you see the text.
+5. `curl -X DELETE 'https://<your-url>/files?key=notes/hello.txt'` removes it.
+6. **Not linked:** unlink the app in ZeroTo (and redeploy): `/storage` answers `503` with a hint, `/health` still says `ok`.
+7. **Limits:** try a file name with an unusual type in a *public* bucket (e.g. `run.exe`): the storage refuses it with a message, and `/files` passes that message on.
+
+The key is only read from the environment and is never printed or returned.
 
 ## Test 7 — it sleeps when idle, and wakes by itself
 ZeroTo stops an idle app after about 5 minutes and removes its container after about 10; the next request wakes it. Leave this app alone for a
