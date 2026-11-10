@@ -73,6 +73,21 @@ app.get("/", (req, res) => {
 
 app.get("/health", (req, res) => res.send("ok"))
 
+// Simple test endpoints for checking that the app responds and that data goes in and out correctly.
+app.get("/api/ping", (req, res) => {
+  res.json({ ok: true, message: "pong", time: new Date().toISOString() })
+})
+
+// Sends back what you sent: `GET /api/echo?message=hi` or `POST /api/echo` with a JSON body.
+app.get("/api/echo", (req, res) => {
+  const message = typeof req.query.message === "string" ? req.query.message : ""
+  res.json({ method: "GET", echo: message })
+})
+
+app.post("/api/echo", (req, res) => {
+  res.json({ method: "POST", echo: req.body ?? null })
+})
+
 // Proof the link works: who we are connected as, to what.
 app.get(
   "/db",
