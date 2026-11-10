@@ -14,6 +14,11 @@ A tiny Express app for testing ZeroTo deployments.
 
 Locally: copy `.env.example` to `.env` and run `node index.js`.
 
+## Test API endpoints
+- `GET /api/ping` returns `{"ok": true, "message": "pong", "time": ...}` to show the app is responding.
+- `GET /api/echo?message=hello` returns `{"method": "GET", "echo": "hello"}`.
+- `POST /api/echo` with a JSON body (for example `{"text": "hello"}`) returns `{"method": "POST", "echo": {...}}` with the same body.
+
 ## Using a ZeroTo managed database
 The app reads `DATABASE_URL` (ZeroTo adds it when you link a database: **Databases → your database → Linked apps**, then redeploy).
 `GET /db` shows the connection, and `/notes` (GET/POST/DELETE) stores notes in the database. Without a database the app still runs and these endpoints answer `503` with a hint.
